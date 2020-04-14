@@ -33,7 +33,13 @@ spec:
         - --config-dir=/tmp/cilium/config-map
         - --debug=$(CILIUM_DEBUG)
         command:
-        - cilium-operator
+{{- if .Values.global.eni }}
+        - cilium-operator-aws
+{{- else if .Values.global.azure.enabled }}
+        - cilium-operator-azure
+{{- else }}
+        - cilium-operator-generic
+{{- end }}
         env:
         - name: K8S_NODE_NAME
           valueFrom:
