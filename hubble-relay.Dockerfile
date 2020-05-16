@@ -1,3 +1,5 @@
+# (first line comment needed for DOCKER_BUILDKIT use)
+#
 FROM docker.io/library/golang:1.14.3 as builder
 ADD . /go/src/github.com/cilium/cilium
 WORKDIR /go/src/github.com/cilium/cilium/hubble-relay
