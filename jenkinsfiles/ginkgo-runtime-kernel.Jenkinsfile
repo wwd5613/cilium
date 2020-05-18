@@ -137,7 +137,7 @@ pipeline {
             post {
                 always {
                     sh 'cd ${TESTDIR}; ./post_build_agent.sh || true'
-                    sh 'cd ${TESTDIR}; ./archive_test_results.sh || true'
+                    sh 'cd ${TESTDIR}; ./archive_test_results_eks.sh || true'
                     sh 'cd ${TESTDIR}/..; mv *.zip ${WORKSPACE} || true'
                     sh 'cd ${TESTDIR}; mv *.xml ${WORKSPACE}/${PROJ_PATH}/test || true'
                     sh 'cd ${TESTDIR}; vagrant destroy -f || true'
