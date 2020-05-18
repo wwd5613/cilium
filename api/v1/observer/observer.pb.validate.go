@@ -297,6 +297,77 @@ var _ interface {
 	ErrorName() string
 } = GetFlowsRequestValidationError{}
 
+// Validate checks the field values on RelayStatus with the rules defined in
+// the proto definition for this message. If any rules are violated, an error
+// is returned.
+func (m *RelayStatus) Validate() error {
+	if m == nil {
+		return nil
+	}
+
+	// no validation rules for NumNodesTotal
+
+	// no validation rules for NumNodesQueried
+
+	// no validation rules for NumNodesResponded
+
+	return nil
+}
+
+// RelayStatusValidationError is the validation error returned by
+// RelayStatus.Validate if the designated constraints aren't met.
+type RelayStatusValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e RelayStatusValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e RelayStatusValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e RelayStatusValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e RelayStatusValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e RelayStatusValidationError) ErrorName() string { return "RelayStatusValidationError" }
+
+// Error satisfies the builtin error interface
+func (e RelayStatusValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sRelayStatus.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = RelayStatusValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = RelayStatusValidationError{}
+
 // Validate checks the field values on GetFlowsResponse with the rules defined
 // in the proto definition for this message. If any rules are violated, an
 // error is returned.
@@ -325,6 +396,18 @@ func (m *GetFlowsResponse) Validate() error {
 			if err := v.Validate(); err != nil {
 				return GetFlowsResponseValidationError{
 					field:  "Flow",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	case *GetFlowsResponse_Status:
+
+		if v, ok := interface{}(m.GetStatus()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return GetFlowsResponseValidationError{
+					field:  "Status",
 					reason: "embedded message failed validation",
 					cause:  err,
 				}

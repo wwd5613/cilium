@@ -86,10 +86,26 @@ message GetFlowsRequest {
     google.protobuf.Timestamp until = 8;
 }
 
+// RelayStatus is a message sent by hubble-relay to indicate which nodes
+// were unresponsive during the request.
+message RelayStatus {
+    // num_nodes_total is the total number of known nodes in the cluster
+    uint32 num_nodes_total = 1;
+    // num_nodes_queried is the number of nodes queried for this request
+    uint32 num_nodes_queried = 2;
+    // num_nodes_responded is the number of nodes which responded in this request
+    uint32 num_nodes_responded = 3;
+
+    // unresponsive_nodes is a list of nodes which did not respond to this
+    // request.
+    repeated string unresponsive_nodes = 4;
+}
+
 // GetFlowsResponse contains either a flow or a protocol message.
 message GetFlowsResponse {
     oneof response_types{
         flow.Flow flow = 1;
+        RelayStatus status = 2;
     }
     // Name of the node where this event was observed.
     string node_name = 1000;
