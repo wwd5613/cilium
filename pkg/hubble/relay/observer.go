@@ -21,8 +21,10 @@ import (
 
 	observerpb "github.com/cilium/cilium/api/v1/observer"
 	"github.com/cilium/cilium/pkg/hubble/relay/queue"
-	"github.com/sirupsen/logrus"
+	node "github.com/cilium/cilium/pkg/node/types"
 
+	"github.com/golang/protobuf/ptypes"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -30,6 +32,21 @@ import (
 
 // ensure that Server implements the observer.ObserverServer interface.
 var _ observerpb.ObserverServer = (*Server)(nil)
+
+func relayStatusResponse(numPeers int, failedPeers []string) *observerpb.GetFlowsResponse {
+	return &observerpb.GetFlowsResponse{
+		Time:     ptypes.TimestampNow(),
+		NodeName: node.GetName(),
+		ResponseTypes: &observerpb.GetFlowsResponse_Status{
+			Status: &observerpb.RelayStatus{
+				NumNodesTotal:     uint32(numPeers),
+				NumNodesQueried:   uint32(numPeers),
+				NumNodesResponded: uint32(numPeers - len(failedPeers)),
+				UnresponsiveNodes: failedPeers,
+			},
+		},
+	}
+}
 
 // GetFlows implements observer.ObserverServer.GetFlows by proxying requests to
 // the hubble instance the proxy is connected to.
@@ -54,12 +71,55 @@ func (s *Server) GetFlows(req *observerpb.GetFlowsRequest, stream observerpb.Obs
 
 	g, gctx := errgroup.WithContext(ctx)
 	flows := make(chan *observerpb.GetFlowsResponse, qlen)
+	failedPeers := make(chan string, len(peers))
+
+	go func() {
+		g.Wait()
+		close(failedPeers)
+	}()
+
+	go func() {
+		defer close(flows)
+
+		var tickerCh <-chan time.Time
+		if req.Follow {
+			ticker := time.NewTicker(s.opts.RelayStatusInterval)
+			defer ticker.Stop()
+			tickerCh = ticker.C
+		}
+
+		failedPeersList := []string{}
+	failedPeersLoop:
+		for {
+			select {
+			case peer, ok := <-failedPeers:
+				if !ok {
+					break failedPeersLoop
+				}
+				failedPeersList = append(failedPeersList, peer)
+			case <-tickerCh:
+				select {
+				case flows <- relayStatusResponse(len(peers), failedPeersList):
+				case <-ctx.Done():
+					break failedPeersLoop
+				}
+			case <-ctx.Done():
+				break failedPeersLoop
+			}
+		}
+		select {
+		case flows <- relayStatusResponse(len(peers), failedPeersList):
+		case <-ctx.Done():
+		}
+	}()
+
 	for _, p := range peers {
 		p := p
 		if p.conn == nil || p.connErr != nil {
 			s.log.WithField("address", p.Address.String()).Infof(
 				"No connection to peer %s, skipping", p.Name,
 			)
+			failedPeers <- p.Name
 			go s.connectPeer(p.Name, p.Address.String())
 			continue
 		}
@@ -71,6 +131,7 @@ func (s *Server) GetFlows(req *observerpb.GetFlowsRequest, stream observerpb.Obs
 					"error": err,
 					"peer":  p,
 				}).Warning("Failed to retrieve flows from peer")
+				failedPeers <- p.Name
 				return nil
 			}
 			for {
@@ -91,15 +152,12 @@ func (s *Server) GetFlows(req *observerpb.GetFlowsRequest, stream observerpb.Obs
 							"peer":  p,
 						}).Error("Failed to receive flows from peer")
 					}
+					failedPeers <- p.Name
 					return nil
 				}
 			}
 		})
 	}
-	go func() {
-		g.Wait()
-		close(flows)
-	}()
 
 	pq := queue.NewPriorityQueue(qlen)
 	sortedFlows := make(chan *observerpb.GetFlowsResponse, qlen)

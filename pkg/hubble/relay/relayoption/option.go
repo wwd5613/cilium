@@ -22,13 +22,14 @@ import (
 
 // Options stores all the configuration values for the hubble-relay server.
 type Options struct {
-	HubbleTarget       string
-	DialTimeout        time.Duration
-	RetryTimeout       time.Duration
-	ListenAddress      string
-	Debug              bool
-	BufferMaxLen       int
-	BufferDrainTimeout time.Duration
+	HubbleTarget        string
+	DialTimeout         time.Duration
+	RetryTimeout        time.Duration
+	ListenAddress       string
+	Debug               bool
+	BufferMaxLen        int
+	BufferDrainTimeout  time.Duration
+	RelayStatusInterval time.Duration
 }
 
 // Option customizes the configuration of the hubble-relay server.
@@ -108,6 +109,18 @@ func WithBufferDrainTimeout(d time.Duration) Option {
 			return fmt.Errorf("value for BufferDrainTimeout must be greater than 0: %d", d)
 		}
 		o.BufferDrainTimeout = d
+		return nil
+	}
+}
+
+// WithRelayStatusInterval sets the interval of the relay status message in
+// follow-mode requests.
+func WithRelayStatusInterval(d time.Duration) Option {
+	return func(o *Options) error {
+		if d <= 0 {
+			return fmt.Errorf("value for RelayStatusInterval must be greater than 0: %d", d)
+		}
+		o.RelayStatusInterval = d
 		return nil
 	}
 }
