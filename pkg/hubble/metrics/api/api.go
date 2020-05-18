@@ -17,7 +17,9 @@ package api
 import (
 	"strings"
 
-	"github.com/cilium/cilium/pkg/hubble/api/v1"
+	v1 "github.com/cilium/cilium/pkg/hubble/api/v1"
+	"github.com/cilium/cilium/pkg/logging"
+	"github.com/cilium/cilium/pkg/logging/logfields"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -85,7 +87,9 @@ func (h Handlers) ProcessFlow(flow v1.Flow) {
 	}
 }
 
-var registry = NewRegistry()
+var registry = NewRegistry(
+	logging.DefaultLogger.WithField(logfields.LogSubsys, "hubble"),
+)
 
 // DefaultRegistry returns the default registry of all available metric plugins
 func DefaultRegistry() *Registry {
