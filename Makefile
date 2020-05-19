@@ -255,6 +255,11 @@ clean: clean-container clean-build
 clean-build:
 	-$(QUIET) rm -rf _build
 
+veryclean:
+	-$(QUIET) $(CONTAINER_ENGINE) image prune -af
+	-$(QUIET) $(CONTAINER_ENGINE) builder prune -af
+	-$(QUIET) $(CONTAINER_ENGINE) system prune -af
+
 install-bpf:
 	$(QUIET)$(INSTALL) -m 0750 -d $(DESTDIR)$(LOCALSTATEDIR)/lib/cilium
 	-rm -rf $(DESTDIR)$(LOCALSTATEDIR)/lib/cilium/bpf/*
