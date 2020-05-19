@@ -1037,6 +1037,31 @@ var _ = Describe("K8sServicesTest", func() {
 
 		SkipContextIf(
 			func() bool {
+				return helpers.RunsWithoutKubeProxy()
+			},
+			"with L4 policy", func() {
+				var (
+					demoPolicy string
+				)
+
+				BeforeAll(func() {
+					demoPolicy = helpers.ManifestGet(kubectl.BasePath(), "l4-policy-demo.yaml")
+				})
+
+				AfterAll(func() {
+					// Explicitly ignore result of deletion of resources to avoid incomplete
+					// teardown if any step fails.
+					_ = kubectl.Delete(demoPolicy)
+				})
+
+				It("Tests NodePort with L7 Policy", func() {
+					applyPolicy(demoPolicy)
+					testNodePort(false, false, false)
+				})
+			})
+
+		SkipContextIf(
+			func() bool {
 				return true // GH-11578
 				//return helpers.IsIntegration(helpers.CIIntegrationEKS) ||
 				//helpers.IsIntegration(helpers.CIIntegrationGKE) || // Re-enable when GH-11235 is fixed
