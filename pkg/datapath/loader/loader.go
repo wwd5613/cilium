@@ -29,6 +29,7 @@ import (
 	"github.com/cilium/cilium/pkg/datapath/link"
 	"github.com/cilium/cilium/pkg/datapath/linux/route"
 	"github.com/cilium/cilium/pkg/datapath/loader/metrics"
+	datapathOption "github.com/cilium/cilium/pkg/datapath/option"
 	"github.com/cilium/cilium/pkg/defaults"
 	"github.com/cilium/cilium/pkg/elf"
 	"github.com/cilium/cilium/pkg/logging"
@@ -155,7 +156,7 @@ func patchHostNetdevDatapath(ep datapath.Endpoint, objPath, dstPath, ifName stri
 		return err
 	}
 
-	if option.Config.EnableNodePort {
+	if option.Config.EnableNodePort && nodePortIPv4Addrs != nil && nodePortIPv6Addrs != nil {
 		// First device from the list is used for direct routing between nodes
 		directRoutingIface := option.Config.Devices[0]
 		directRoutingIfIndex, err := link.GetIfIndex(directRoutingIface)
@@ -215,6 +216,26 @@ func (l *Loader) reloadHostDatapath(ctx context.Context, ep datapath.Endpoint, o
 	directions[0], directions[1] = dirIngress, dirEgress
 	objPaths[0], objPaths[1] = objPath, objPath
 	interfaceNames[0], interfaceNames[1] = ep.InterfaceName(), ep.InterfaceName()
+
+	// In Flannel's case or when using ipvlan, HOST_DEV2 is equal to HOST_DEV1
+	// in init.sh and we don't need to attach the same BPF program to the same
+	// interface twice.
+	if option.Config.DatapathMode != datapathOption.DatapathModeIpvlan &&
+		!option.Config.IsFlannelMasterDeviceSet() {
+		if _, err := netlink.LinkByName(defaults.SecondHostDevice); err != nil {
+			log.WithError(err).WithField("device", defaults.SecondHostDevice).Error("Link does not exist")
+			return err
+		} else {
+			interfaceNames = append(interfaceNames, defaults.SecondHostDevice)
+			symbols = append(symbols, symbolToHostEp)
+			directions = append(directions, dirIngress)
+			secondDevObjPath := path.Join(ep.StateDir(), hostEndpointPrefix+"_"+defaults.SecondHostDevice+".o")
+			if err := patchHostNetdevDatapath(ep, objPath, secondDevObjPath, defaults.SecondHostDevice, nil, nil); err != nil {
+				return err
+			}
+			objPaths = append(objPaths, secondDevObjPath)
+		}
+	}
 
 	nodePortIPv4Addrs := node.GetNodePortIPv4AddrsWithDevices()
 	nodePortIPv6Addrs := node.GetNodePortIPv6AddrsWithDevices()
