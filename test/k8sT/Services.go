@@ -88,8 +88,6 @@ var _ = Describe("K8sServicesTest", func() {
 	})
 
 	AfterAll(func() {
-		kubectl.DeleteCiliumDS()
-		ExpectAllPodsTerminated(kubectl)
 		kubectl.CloseSSHClient()
 	})
 
@@ -1084,10 +1082,6 @@ var _ = Describe("K8sServicesTest", func() {
 
 				AfterAll(func() {
 					enableBackgroundReport = true
-					kubectl.DeleteCiliumDS()
-					ExpectAllPodsTerminated(kubectl)
-					// Deploy Cilium as the next test expects it to be up and running
-					DeployCiliumAndDNS(kubectl, ciliumFilename)
 				})
 
 				Context("Tests with vxlan", func() {
